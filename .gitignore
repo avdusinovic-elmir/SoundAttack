@@ -1,0 +1,5 @@
+Targets/Deepspeech/deepspeech-0.9.3-models.pbmm
+Targets/Deepspeech/deepspeech-0.9.3-models.scorer
+Targets/Deepspeech/deepspeech-0.9.3-models.tflite
+trainDS1.py
+sample_converted.wav
