@@ -21,13 +21,13 @@ class EA:
         similarity = model2.predict([(target, test)])
         return similarity[0]
 
-    def generate_population(self, original, n=20):
+    def generate_population(self, original, n=50):
         population = []
         size = len(original)
         print(len(original))
         for _ in range(n):
             new_solution = np.random.randint(-100, 100, size, dtype=np.int16)
-            print(len(new_solution))
+            # print(len(new_solution))
             population.append(Individual(solution=new_solution, fitness=None))
         return population
 
@@ -38,6 +38,8 @@ class EA:
             combination = original + indv.solution
             # Deepspeech model
             text = model.stt(combination)
+            # if text != "and you know it":
+            #     print(text)
             # Cosine Similarity of Word Embeddings
             vectorizer = CountVectorizer().fit([self.target, text])
             vectors = vectorizer.transform([self.target, text]).toarray()
@@ -80,7 +82,7 @@ class EA:
         for indv in population:
             for i in range(len(indv.solution)):
                 if random.random() < 0.5:
-                    add = random.randint(1, 10)
+                    add = random.randint(1, 100)
                     if random.random() < 0.5:
                         add = -add
                     indv.solution[i] += add
@@ -96,7 +98,7 @@ class EA:
             # print(" Fitness_midd: ", population[-15].fitness,
             #       " Sentence: ", model.stt(org+population[-15].solution))
 
-            print(len(population))
+            print("Epoch:"+str(_))
             population, fitts = self.sort_population(org, population, model=model)
             population = self.selection(population)
             population = self.crossover(population)
