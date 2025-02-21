@@ -1,0 +1,24 @@
+To support symlinks on Windows, you either need to activate Developer Mode or to run Python as an administrator. In order to activate developer mode, see this article: https://docs.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development
+  warnings.warn(message)
+Some weights of Wav2Vec2ForCTC were not initialized from the model checkpoint at facebook/wav2vec2-large-960h and are newly initialized: ['wav2vec2.masked_spec_embed']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+
+Sample Rate: 16000 Hz
+
+Character Sample Number Report:
+Character 'A': Start Sample = 11988, End Sample = 12312
+Character 'N': Start Sample = 12636, End Sample = 12960
+Character 'D': Start Sample = 13284, End Sample = 13608
+Character 'Y': Start Sample = 14904, End Sample = 15228
+Character 'O': Start Sample = 15228, End Sample = 15552
+Character 'O': Start Sample = 15552, End Sample = 15876
+Character 'U': Start Sample = 15876, End Sample = 16200
+Character 'K': Start Sample = 17820, End Sample = 18144
+Character 'K': Start Sample = 18144, End Sample = 18468
+Character 'N': Start Sample = 18468, End Sample = 18792
+Character 'N': Start Sample = 18792, End Sample = 19116
+Character 'O': Start Sample = 19116, End Sample = 19440
+Character 'W': Start Sample = 20088, End Sample = 20412
+Character 'I': Start Sample = 22356, End Sample = 22680
+Character 'T': Start Sample = 24300, End Sample = 24624
+No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
