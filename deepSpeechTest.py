@@ -32,7 +32,7 @@ ds.enableExternalScorer(scorer_path=scorer_file_path)
 ###Single file test
 
 # Load the audio file
-audio_file_path = 'Dataset/mozillaorg/common-voice/versions/2/cv-valid-test/cv-valid-test/sample-000003.mp3'
+audio_file_path = 'Dataset/mozillaorg/common-voice/versions/2/cv-valid-test/cv-valid-test/sample-000002.mp3'
 
 # if os.path.exists(audio_file_path):
 #     print("File exists")

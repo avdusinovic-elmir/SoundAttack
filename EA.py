@@ -55,13 +55,13 @@ class EA:
             indv.fitness = cosine_similarity([vectors[0]], [vectors[1]])[0][0]
             indv.ctc_fitness = ctc_loss_numpy(combination, target_text=self.target)
 
-            penalty = 0
-            for _ in range(len(indv.solution)):
-                if indv.solution[_] > 900:
-                    penalty += 1
-
-            penalty = (penalty/len(indv.solution))
-            indv.fitness += penalty
+            # penalty = 0
+            # for _ in range(len(indv.solution)):
+            #     if indv.solution[_] > 900:
+            #         penalty += 1
+            #
+            # penalty = (penalty/len(indv.solution))
+            # indv.fitness += penalty
             # Semantic Similarity
             # indv.fitness = self.semantic_similarity(self.web_model, self.target, text)
 
@@ -98,6 +98,8 @@ class EA:
     def mutation(self, population):
         for indv in population:
             for i in range(len(indv.solution)):
+                if indv.solution[i] >= 900:
+                    continue
                 if random.random() < 0.5:
                     add = random.randint(-100, 100)
                     indv.solution[i] += add
