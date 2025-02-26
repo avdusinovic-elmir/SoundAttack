@@ -154,11 +154,12 @@ class EA:
             text = self.transcript_audio(combination)
             print(text)
 
-            # indv.ctc_fitness = self.cosine_similarity_loss(self.target, text)
-
+            indv.fitness = self.cosine_similarity_loss(self.target, text)
+            print("indvFITNESS: ", indv.fitness)
 
             indv.ctc_fitness = self.ctc_loss(original, indv.solution, self.target)
-            print("indvFITNESS: ", indv.ctc_fitness)
+            # print("CTC loss function: ", ctc_loss_numpy(original+indv.solution, self.target))
+            print("indvFITNESS_CTC: ", indv.ctc_fitness)
 
             # indv.ctc_fitness = ctc_loss_numpy(combination, target_text=self.target)
 
@@ -176,8 +177,13 @@ class EA:
             fitts.append(indv.ctc_fitness)
 
         # Sort the population by fitness
-        population.sort(key=lambda x: x.ctc_fitness, reverse=False)
-        # population.sort(key=lambda x: (-x.fitness, x.ctc_fitness))
+        # population.sort(key=lambda x: x.ctc_fitness, reverse=False)
+        # for indv in population:
+        #     print("Fitness: ", indv.fitness, " & CTC: ", indv.ctc_fitness)
+        # print("___"*22)
+        population.sort(key=lambda x: (-x.fitness, x.ctc_fitness))
+        # for indv in population:
+        #     print("Fitness: ", indv.fitness, " & CTC: ", indv.ctc_fitness)
         fitts.sort()
         print("FITTSSS: ", fitts)
 
@@ -274,20 +280,23 @@ class EA:
                   " Sentence: ", self.transcript_audio(org + population[-15].solution))
             # for i in range(50):
             #     print(i, " Fitness: ", population[i].fitness, " Sentence: ", model.stt(org+population[i].solution))
-            b1 = time.time()
-            population = self.selection(population)
-            print("POPULATION SIZE after selection: ", len(population))
-            e1 = time.time()
 
-            b2 = time.time()
-            population = self.crossover(population)
-            print("POPULATION SIZE after crossover: ", len(population))
-            e2 = time.time()
-            # print("POPU aft Cross: ", population)
-            b3 = time.time()
-            population = self.mutation(population)
-            print("POPULATION SIZE after mutation: ", len(population))
-            e3 = time.time()
+            # Stop if fitness of one individual is 0
+            if population[0].fitness != 0.0:
+                b1 = time.time()
+                population = self.selection(population)
+                print("POPULATION SIZE after selection: ", len(population))
+                e1 = time.time()
+
+                b2 = time.time()
+                population = self.crossover(population)
+                print("POPULATION SIZE after crossover: ", len(population))
+                e2 = time.time()
+                # print("POPU aft Cross: ", population)
+                b3 = time.time()
+                population = self.mutation(population)
+                print("POPULATION SIZE after mutation: ", len(population))
+                e3 = time.time()
 
             # print("SELECTION: ", e1-b1)
             # print("CROSSOVER: ", e2-b2)
@@ -298,6 +307,6 @@ class EA:
                 print("We reached our destination! OLLAAAAAA")
                 break
 
-        return org+population[0].solution, population[0].solution, population[0].ctc_fitness, population[0].ctc_fitness
+        return org+population[0].solution, population[0].solution, population[0].fitness, population[0].ctc_fitness
 
 

@@ -38,11 +38,12 @@ class EA:
     def cosine_similarity_loss(self, y_targ, y_pred):
         # Tokenize and pad y_targ_transcription
         y_targ_sequence = [vocab.get(c, 26) for c in y_targ]
-        y_targ_padded = np.pad(y_targ_sequence, (0, 10 - len(y_targ_sequence)), mode='constant')
+        # print(len(y_targ_sequence))
+        y_targ_padded = np.pad(y_targ_sequence, (0, 18 - len(y_targ_sequence)), mode='constant')
 
         # Tokenize and pad y_pred_transcription
         y_pred_sequence = [vocab.get(c, 26) for c in y_pred]
-        y_pred_padded = np.pad(y_pred_sequence, (0, 10 - len(y_pred_sequence)), mode='constant')
+        y_pred_padded = np.pad(y_pred_sequence, (0, 18 - len(y_pred_sequence)), mode='constant')
         # print("Y_PRED: ", y_pred_padded)
         # print("Y_ADV: ", y_pred_padded)
 

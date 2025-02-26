@@ -13,8 +13,8 @@ from EA_wav3vec import EA
 
 
 # ATTACK
-audio_file = "stop_1.wav"
-target_text = "STAP"  # Target transcription for the adversarial sample
+audio_file = "Dataset/mozillaorg/common-voice/versions/2/cv-valid-test/cv-valid-test/sample-000002.mp3"
+target_text = "AND YOU KNOW IT"  # Target transcription for the adversarial sample
 population = 30
 elits = 10
 epochs = 100
@@ -39,7 +39,6 @@ attackEA = EA(target=target_text, pop=population, elits=elits, mutatation_range=
 result, noise, fitness, ctc_loss = attackEA.attack_speech(org=preprocessed_audio, adv=target_text, epochs=epochs)
 
 
-
 with torch.no_grad():
     logits = model(result).logits
 
@@ -52,7 +51,7 @@ print("Result:", result_text)
 print("Fitness:", fitness)
 print("CTC Loss:", ctc_loss)
 #
-result_array = result.squeeze(0).numpy()
+result_array = speech_array+noise#result.squeeze(0).numpy()
 # noise = noise.squeeze(0).numpy()
 
 plt.plot(result_array, label='Adversarial Audio')
