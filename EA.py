@@ -7,9 +7,9 @@ import time
 
 from Loss.ctcLoss import *
 
-vocab = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6, 'h': 7, 'i': 8, 'j': 9,
-                      'k': 10, 'l': 11, 'm': 12, 'n': 13, 'o': 14, 'p': 15, 'q': 16, 'r': 17, 's': 18,
-                      't': 19, 'u': 20, 'v': 21, 'w': 22, 'x': 23, 'y': 24, 'z': 25, ' ': 26}
+vocab = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10,
+                      'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19,
+                      't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26, ' ': 27}
 
 
 # from semantic_text_similarity.models import WebBertSimilarity
@@ -21,7 +21,8 @@ class Individual:
 
 
 class EA:
-    def __init__(self, target, elits):
+    def __init__(self, target, pop, elits):
+        self.pop = pop
         self.target = target
         self.elits = elits
 
@@ -30,6 +31,7 @@ class EA:
     # web_model = WebBertSimilarity(device='cpu', batch_size=10)  # defaults to GPU prediction
 
     # clinical_model = ClinicalBertSimilarity(device='cuda', batch_size=10)  # defaults to GPU prediction
+
 
     def semantic_similarity(self, model2, target, test):
         similarity = model2.predict([(target, test)])
@@ -45,7 +47,7 @@ class EA:
         y_pred_sequence = [vocab.get(c, 26) for c in y_pred]
         y_pred_padded = np.pad(y_pred_sequence, (0, 18 - len(y_pred_sequence)), mode='constant')
         # print("Y_PRED: ", y_pred_padded)
-        # print("Y_ADV: ", y_pred_padded)
+        # print("Y_ADV: ", y_targ_padded)
 
         y_pred_n = np.array(y_pred_padded)
         y_targ_n = np.array(y_targ_padded)
@@ -60,15 +62,15 @@ class EA:
         # Step 4: Compute cosine similarity
         similarity = dot_product / (norm1 * norm2)
         loss = 1 - similarity
-
+        # print("SIMILARITY: ", loss)
         return loss
 
-    def generate_population(self, original, n=30):
+    def generate_population(self, original, pop):
         population = []
         size = len(original)
         # print('what:', len(original))
-        for i in range(n):
-            new_solution = np.random.randint(-500, 500, size, dtype=np.int16)
+        for i in range(pop):
+            new_solution = np.random.randint(-200, 200, size, dtype=np.int16)
             # print(new_solution)
             # print("max: ", max(new_solution), "min: ", min(new_solution))
             population.append(Individual(solution=new_solution, fitness=None, ctc_fitness=None))
@@ -82,18 +84,10 @@ class EA:
         fitts = []
         for indv in population:
             combination = original + indv.solution
-            # print(combination)
             # Deepspeech model
             text = model.stt(combination)
-            # print("TEXT: ", text)
-            # print("self.Tareget: ", self.target)
-            # if text != "and you know it":
-            #     print(text)
-            # Cosine Similarity of Word Embeddings
-            # vectorizer = CountVectorizer().fit([self.target, text])
-            # vectors = vectorizer.transform([self.target, text]).toarray()
-            # print("VECTORS: ", vectors)
-            # indv.fitness = cosine_similarity([vectors[0]], [vectors[1]])[0][0]
+            # print(text)
+
             indv.fitness = self.cosine_similarity_loss(self.target, text)
             # print("indvFITNESS: ", indv.fitness)
             # indv.ctc_fitness = ctc_loss_numpy(combination, target_text=self.target)
@@ -115,7 +109,7 @@ class EA:
         population.sort(key=lambda x: x.fitness, reverse=False)
         # population.sort(key=lambda x: (-x.fitness, x.ctc_fitness))
         fitts.sort()
-        print("FITTSSS: ", fitts)
+        # print("FITTSSS: ", fitts)
 
         return population, fitts
 
@@ -148,7 +142,7 @@ class EA:
     #     return population
 
     def mutation(self, population):
-        ranges = [-200, 0, 200]
+        ranges = [-100, 0, 100]
 
         for indv in population[self.elits:]:
             size = len(indv.solution)
@@ -159,8 +153,8 @@ class EA:
         return population
 
     # Step 6: Generate, evaluate Population
-    def attack_speech(self, org, adv, model, epochs=100):
-        population = self.generate_population(org)
+    def attack_speech(self, org, adv, model, epochs):
+        population = self.generate_population(org, self.pop)
         for _ in range(epochs):
 
 
@@ -173,9 +167,9 @@ class EA:
 
             print("Epochs: ", _+1,  " Fitness_best: ", population[0].fitness,
                   " Sentence: ", model.stt(org+population[0].solution))
-            print(" Fitness_worst: ", population[29].fitness,
+            print(" Fitness_worst: ", population[self.pop-1].fitness,
                   " Sentence: ", model.stt(org+population[-1].solution))
-            print(" Fitness_midd: ", population[-15].fitness,
+            print(" Fitness_midd: ", population[-self.pop//2].fitness,
                   " Sentence: ", model.stt(org+population[-15].solution))
             # for i in range(50):
             #     print(i, " Fitness: ", population[i].fitness, " Sentence: ", model.stt(org+population[i].solution))
@@ -194,5 +188,8 @@ class EA:
             # print("SELECTION: ", e1-b1)
             # print("CROSSOVER: ", e2-b2)
             # print("MUTATION: ", e3-b3)
+            if population[0].fitness < 0.0001:
+                print("We reached our destination! OLLAAAAAA")
+                break
 
         return population[0].solution, population[0].fitness, population[0].ctc_fitness

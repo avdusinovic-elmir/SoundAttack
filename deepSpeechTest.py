@@ -15,8 +15,6 @@ import tensorflow as tf
 import torchaudio
 from deepspeech import Model as DeepSpeechModel  # Ensure this matches your DeepSpeech version
 
-from Loss.ctcLoss import ctc_loss_numpy
-
 # Load DeepSpeech model
 ds_model_path = 'Targets/Deepspeech/deepspeech-0.9.3-models.pbmm'
 
@@ -76,13 +74,7 @@ waveform_int16 = (waveform.numpy()[0] * 32767).astype(np.int16)
 original_transcription = ds.stt(waveform_int16)
 print("Orignal transcription: ", original_transcription)
 
-
-# # Test CTC loss of the audio waveform
-# loss = ctc_loss_numpy(waveform_int16, original_transcription)
-# print("CTC loss: ", loss)
-# sys.exit()
-
-alg = EA(target=target_text, elits=10)
+alg = EA(target=target_text)
 print(max(waveform_int16))
 print(min(waveform_int16))
 result, fitness, ctc_loss = alg.attack_speech(org=waveform_int16, adv=target_text, model=ds, epochs=100)
@@ -113,7 +105,7 @@ def save_audio_with_noise(noise, sr, file_path, n):
 
 
 save_audio_with_noise(result, original_sample_rate, "adv_audio.mp3", normalization)
-save_audio_with_noise(result, original_sample_rate, "adv_audio.wav", normalization)
+# save_audio_with_noise(result, original_sample_rate, "adv_audio.wav", normalization)
 
 waveform, sample_rate = torchaudio.load("adv_audio.mp3")
 

@@ -76,10 +76,10 @@ def plot_waveform(audio_tensor, sample_rate):
 
 
 # Example usage
-audio_path = "Dataset/mozillaorg/common-voice/versions/2/cv-valid-test/cv-valid-test/sample-000002.mp3"  # Replace with your audio file
+audio_path = "stop_1.wav"  # Replace with your audio file
 start = 11988
 start_sample = start
-end_sample = 24624  # w2v requires at least 1600 samples (3200 to make it audible)
+end_sample = 16000  # w2v requires at least 1600 samples (3200 to make it audible)
 
 save_path = "extracted_fragment.wav"  # Set a file name for saving the fragment
 

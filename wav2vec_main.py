@@ -13,8 +13,8 @@ from EA_wav3vec import EA
 
 
 # ATTACK
-audio_file = "Dataset/mozillaorg/common-voice/versions/2/cv-valid-test/cv-valid-test/sample-000002.mp3"
-target_text = "AND YOU KNOW IT"  # Target transcription for the adversarial sample
+audio_file = "stop_1.wav"
+target_text = "STAR"  # Target transcription for the adversarial sample
 population = 30
 elits = 10
 epochs = 100

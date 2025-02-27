@@ -52,6 +52,7 @@ class EA:
     def transcript_audio(self, audio_file):
         # input_values = self.preprocess_audio(audio_file)
         # Perform Inference
+        # ADD HERE PREPROCESS
         with torch.no_grad():
             logits = model(audio_file).logits
 
