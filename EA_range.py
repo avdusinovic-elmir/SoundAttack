@@ -3,7 +3,9 @@ import random
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-
+import torchaudio.transforms as T
+import torchaudio.functional as F
+from Levenshtein import distance
 
 model_name = "facebook/wav2vec2-large-960h"  # Pretrained ASR model
 model = Wav2Vec2ForCTC.from_pretrained(model_name)
@@ -101,6 +103,9 @@ class EA:
         # print(loss.item())
         return loss.item()  # Lower loss means a better adversarial attack
 
+    def levenshtein_loss(self, y_targ, y_pred):
+        return distance(y_targ, y_pred) / max(len(y_targ), len(y_pred))  # Normalize
+
     def cosine_similarity_loss(self, y_targ, y_pred):
         # Tokenize using the vocabulary mapping
         y_targ_sequence = np.array([vocab.get(c.lower(), 27) for c in y_targ])  # Use .lower() for consistency
@@ -140,6 +145,41 @@ class EA:
 
         return loss
 
+
+    """
+    Perceptual Loss	Meaning
+        ≈ 0.0 - 0.5	Imperceptible noise, almost identical
+        0.5 - 2.0	Slightly audible difference, but not obvious
+        2.0 - 5.0	Clearly audible noise, some distortion
+        5.0 - 10.0	Noticeable, likely unpleasant changes (your case: 7.83)
+        > 10.0	Strong noise, likely unrecognizable distortion
+    """
+    def perceptual_loss_combined(self, original_audio, adversarial_noise):
+        mel_transform = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=512,  # Increase FFT size to capture more frequencies
+            win_length=400,  # Standard for 16kHz speech
+            hop_length=160,  # 10ms step (160 samples for 16kHz)
+            n_mels=80  # Reduce from 128 to 80 for stability
+        )
+
+        # Compute Mel spectrograms
+        original_mel = mel_transform(original_audio)
+        adversarial_mel = mel_transform(adversarial_noise)
+
+        # Compute log-Mel loss
+        log_original = torch.log(original_mel + 1e-6)
+        log_adversarial = torch.log(adversarial_mel + 1e-6)
+        mel_loss = torch.nn.functional.mse_loss(log_original, log_adversarial)
+
+        # Compute waveform loss (to capture transient noises)
+        waveform_loss = torch.nn.functional.mse_loss(original_audio, adversarial_noise)
+
+        # Combine losses (adjust weight if needed)
+        total_loss = 0.7 * mel_loss + 0.3 * waveform_loss
+
+        return total_loss.item()
+
     def generate_population(self, original, pop, start, end):
         population = []
         size = len(original[0])
@@ -149,8 +189,7 @@ class EA:
             new_solution = np.zeros(size, dtype=np.float32)
 
             # Assign random values only within the specified index range
-            new_solution[start:end] = np.random.uniform(-self.epsilon, self.epsilon,
-                                                                end - start).astype(np.float32)
+            new_solution[start:end] = np.random.uniform(low=-self.epsilon, high=self.epsilon, size=end - start).astype(np.float32)
 
             population.append(Individual(solution=new_solution, fitness=None, ctc_fitness=None))
 
@@ -171,19 +210,27 @@ class EA:
             text = self.transcript_audio(combination)
             # print(text)
 
-            indv.fitness = self.fix_fitness(self.cosine_similarity_loss(self.target, text))
+            # indv.fitness = self.fix_fitness(self.cosine_similarity_loss(self.target, text))
+            indv.fitness = self.levenshtein_loss(self.target, text)
             # print("indvFITNESS: ", indv.fitness)
 
-            indv.ctc_fitness = self.ctc_loss(original, indv.solution, self.target)
+            # indv.ctc_fitness = self.ctc_loss(original, indv.solution, self.target)
+            indv.ctc_fitness = self.perceptual_loss_combined(original, combination)
             # print("CTC loss function: ", ctc_loss_numpy(original+indv.solution, self.target))
             # print("indvFITNESS_CTC: ", indv.ctc_fitness)
+
 
 
             fitts.append(indv.ctc_fitness)
 
 
-        # population.sort(key=lambda x: (-x.fitness, x.ctc_fitness))
-        population.sort(key=lambda x: x.fitness)
+        # population.sort(key=lambda x: (x.fitness, x.ctc_fitness))
+        # population.sort(key=lambda x: x.fitness)
+        if population[0].fitness == 0.0:
+            # print("HULLLLLLUUUULLLUUUUUUUUUUUUUUU")
+            population.sort(key=lambda x: (x.fitness, x.ctc_fitness))
+        else:
+            population.sort(key=lambda x: x.fitness)
 
         fitts.sort()
         # print("FITTSSS: ", fitts)
@@ -213,14 +260,29 @@ class EA:
     def mutation(self, population, start, end):
         ranges = [-self.mutation_range, 0, self.mutation_range]
 
-        for indv in population[self.elits:]:
-            size = len(indv.solution)
-            # Initialize a mutation array with all zeros
-            random_array = np.zeros(size, dtype=np.float32)
+        for indv in population[-self.elits:]:  # Skip elite individuals
+            if random.random() > 0.3:
+                size = len(indv.solution)
 
-            # Apply mutations only within the specified range
-            random_array[start:end] = np.random.choice(ranges, size=end - start)
-            indv.solution += random_array
+                # Directly apply mutation without masking
+                random_array = np.zeros(size, dtype=np.float32)
+                random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range, size=end - start)
+                indv.solution += random_array
+
+                # # Generate noise with lower amplitude
+                # random_array = np.zeros(size, dtype=np.float32)
+                # random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range, size=end - start)
+                #
+                # # Apply psychoacoustic masking (blend noise with speech envelope)
+                # envelope = np.abs(indv.solution)
+                # random_array *= envelope
+                #
+                # # Apply high-frequency bandpass filter (hide noise from human perception)
+                # noise_tensor = torch.tensor(random_array, dtype=torch.float32)
+                # filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
+                #
+                # # Add noise to solution
+                # indv.solution += filtered_noise.numpy()
 
         return population
 
@@ -249,7 +311,7 @@ class EA:
             #     print(i, " Fitness: ", population[i].fitness, " Sentence: ", model.stt(org+population[i].solution))
 
             # Stop if fitness of one individual is 0
-            if population[0].fitness != 0.0:
+            if population[0].fitness != 0.0 and population[0].ctc_fitness > 2.0:
                 b1 = time.time()
                 population = self.selection(population)
                 # print("POPULATION SIZE after selection: ", len(population))
@@ -270,7 +332,7 @@ class EA:
             # print("MUTATION: ", e3-b3)
             print(self.transcript_audio(org + population[0].solution), self.target)
 
-            if self.transcript_audio(org + population[0].solution) == self.target:
+            if self.transcript_audio(org + population[0].solution) == self.target and population[0].ctc_fitness <= 2.0:
                 print("We reached our destination! OLLAAAAAA")
                 break
 

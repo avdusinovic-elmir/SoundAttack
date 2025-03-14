@@ -19,8 +19,8 @@ target_text = "STAR"  # Target transcription for the adversarial sample
 population = 30
 elits = 10
 epochs = 100
-mutatation_range = 0.05
-epsilon = 0.005
+mutatation_range = 0.2
+epsilon = 0.01
 start = 11102
 end = 13714
 
@@ -47,7 +47,7 @@ print("speech_array" , speech_array_tensor)
 attackEA = EA(target=target_text, pop=population, elits=elits, mutatation_range=mutatation_range, epsilon=epsilon,
               start=start, end=end)
 
-result, noise, fitness, ctc_loss = attackEA.attack_speech(org=speech_array_tensor, adv=target_text, epochs=epochs)
+result, noise, fitness, ctc_loss, final_epoch = attackEA.attack_speech(org=speech_array_tensor, adv=target_text, epochs=epochs)
 result = result.squeeze().numpy()
 result = processor(result, sampling_rate=16000, return_tensors="pt", padding=True).input_values
 with torch.no_grad():

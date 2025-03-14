@@ -11,18 +11,18 @@ processor = Wav2Vec2Processor.from_pretrained(model_name)
 # from EA_wav3vec import EA
 from EA_range import EA
 
-mutation_list = [0.5, 0.25, 0.1, 0.05, 0.01]
-epsilon_list = [0.1, 0.05, 0.04, 0.02, 0.025, 0.01, 0.005]
+mutation_list = [1.0, 0.7, 0.5, 0.25, 0.1, 0.05, 0.01]
+epsilon_list = [0.5, 0.4, 0.3, 0.2, 0.1]
 folder_path = "gridSearch/epoch300/"
 
 for m in mutation_list:
     for e in epsilon_list:
         # ATTACK
         audio_file = "stop_1.wav"
-        target_text = "STAR"  # Target transcription for the adversarial sample
-        population = 30
+        target_text = "START"  # Target transcription for the adversarial sample
+        population = 50
         elits = 10
-        epochs = 300
+        epochs = 150
         mutatation_range = m
         epsilon = e
         start = 11102
@@ -73,7 +73,7 @@ for m in mutation_list:
         plt.plot(result_array, label='Adversarial Audio')
         plt.plot(speech_array, label='Clean Audio')
         plt.plot(noise, label='Adversarial Noise')
-        plt.title(f"s_audio_{m}_{e}_{final_epoch}")
+        plt.title(f"s_audio_{m}_{e}_{ctc_loss}")
         plt.legend()
         plt.savefig(f"{folder_path}s_audio_{m}_{e}_{final_epoch}.png")
         plt.show()
