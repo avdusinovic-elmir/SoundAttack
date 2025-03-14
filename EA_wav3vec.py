@@ -76,7 +76,7 @@ class EA:
         #Process audio input
         inputs = processor(audio_tensor, sampling_rate=16000, return_tensors='pt', padding=True)
         input_values = inputs.input_values.view(1, 1, -1).squeeze(0)
-
+        print(f"Input shape: {input_values.shape}, Min value: {input_values.min()}, Max value: {input_values.max()}")
 
         # Get logits from the Wav2Vec2 model
         with torch.no_grad():

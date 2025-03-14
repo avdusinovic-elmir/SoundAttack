@@ -14,15 +14,15 @@ from EA_range import EA
 
 
 # ATTACK
-audio_file = "stop_1.wav"
-target_text = "STAR"  # Target transcription for the adversarial sample
-population = 30
+audio_file = "YES.wav"
+target_text = "NO"  # Target transcription for the adversarial sample
+population = 50
 elits = 10
 epochs = 100
-mutatation_range = 0.2
-epsilon = 0.01
-start = 11102
-end = 13714
+mutatation_range = 0.5
+epsilon = 0.02
+start = 7836
+end = 12408
 
 speech_array, sampling_rate = torchaudio.load(audio_file)
 speech_array = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)(speech_array)

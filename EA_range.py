@@ -12,7 +12,7 @@ model = Wav2Vec2ForCTC.from_pretrained(model_name)
 processor = Wav2Vec2Processor.from_pretrained(model_name)
 
 import time
-
+import soundfile as sf
 from Loss.ctcLoss import *
 
 vocab = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10,
@@ -208,16 +208,16 @@ class EA:
             # print(indv.solution)
             # Wav2Vec model
             text = self.transcript_audio(combination)
-            # print(text)
+            print(text)
 
             # indv.fitness = self.fix_fitness(self.cosine_similarity_loss(self.target, text))
             indv.fitness = self.levenshtein_loss(self.target, text)
-            # print("indvFITNESS: ", indv.fitness)
+            print("indvFITNESS: ", indv.fitness)
 
             # indv.ctc_fitness = self.ctc_loss(original, indv.solution, self.target)
             indv.ctc_fitness = self.perceptual_loss_combined(original, combination)
             # print("CTC loss function: ", ctc_loss_numpy(original+indv.solution, self.target))
-            # print("indvFITNESS_CTC: ", indv.ctc_fitness)
+            print("indvFITNESS_CTC: ", indv.ctc_fitness)
 
 
 
@@ -291,6 +291,8 @@ class EA:
     def attack_speech(self, org, adv, epochs):
         population = self.generate_population(org, self.pop, self.start, self.end)
         final_epoch = 0
+        saved = 1
+        print(self.perceptual_loss_combined(org, org))
         for _ in range(epochs):
 
             print("Epoch:" + str(_))
@@ -332,7 +334,13 @@ class EA:
             # print("MUTATION: ", e3-b3)
             print(self.transcript_audio(org + population[0].solution), self.target)
 
-            if self.transcript_audio(org + population[0].solution) == self.target and population[0].ctc_fitness <= 2.0:
+            # if self.transcript_audio(org + population[0].solution) == self.target and saved:
+            #     print("We reached our destination! OLLAAAAAA")
+            #     sf.write("first_advers_audio.wav", org + population[0].solution, 16000)
+            #     saved = 0
+
+
+            if self.transcript_audio(org + population[0].solution) == self.target:# and population[0].ctc_fitness <= 2.0:
                 print("We reached our destination! OLLAAAAAA")
                 break
 
