@@ -254,6 +254,13 @@ class EA:
     # Step 4: Repopulation/Crossover
     def crossover(self, population, start, end):
         for i in range(self.elits):
+            parent1 = population[i].solution
+            parent2 = population[i + 1].solution
+
+            mask = np.random.randint(0, 2, size=parent1.shape).astype(bool)
+            child = np.where(mask, parent1, parent2)
+            new_ind = Individual(solution=child, fitness=None, ctc_fitness=None)
+            population.append(new_ind)
             # if population[0].fitness == 0.0:
             #     ind1 = population[0]
             #     ind2 = population[i + 1]
@@ -268,7 +275,7 @@ class EA:
             #     new_ind2 = Individual(solution=combined2, fitness=None, ctc_fitness=None)
             #     population.append(new_ind1)
             #     population.append(new_ind2)
-            #     if i == 5:
+            #     if i == 4:
             #         print(len(population))
             #         break
             # else:
@@ -285,18 +292,18 @@ class EA:
             #     population.append(new_ind)
 
             # paper version
-            ind1 = population[i]
-            ind2 = population[i + 1]
-            combined = np.zeros(len(ind1.solution), dtype=np.float32)
-            for j in range(len(ind1.solution)):
-                if np.random.random() < 0.5:
-                    combined[j] = ind1.solution[j]
-                else:
-                    combined[j] = ind2.solution[j]
-
-            new_ind = Individual(solution=combined, fitness=None, ctc_fitness=None)
-            # print("NEW IND: ", new_ind)
-            population.append(new_ind)
+            # ind1 = population[i]
+            # ind2 = population[i + 1]
+            # combined = np.zeros(len(ind1.solution), dtype=np.float32)
+            # for j in range(len(ind1.solution)):
+            #     if np.random.random() < 0.5:
+            #         combined[j] = ind1.solution[j]
+            #     else:
+            #         combined[j] = ind2.solution[j]
+            #
+            # new_ind = Individual(solution=combined, fitness=None, ctc_fitness=None)
+            # # print("NEW IND: ", new_ind)
+            # population.append(new_ind)
         return population
 
     def mutation(self, population, start, end):
