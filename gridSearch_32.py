@@ -9,11 +9,10 @@ model = Wav2Vec2ForCTC.from_pretrained(model_name)
 processor = Wav2Vec2Processor.from_pretrained(model_name)
 
 # from EA_wav3vec import EA
-# from EA_range import EA
-from EA_reduce import EA
+from EA_range_32 import EA
 
-mutation_list = [0.25, 0.1, 0.05, 0.01]
-epsilon_list = [0.25, 0.1, 0.05, 0.01]
+mutation_list = [0.5, 0.25, 0.1, 0.05, 0.01]
+epsilon_list = [0.5, 0.25, 0.1, 0.05, 0.01]
 folder_path = "gridSearch/epoch300/"
 
 for m in mutation_list:
@@ -22,16 +21,18 @@ for m in mutation_list:
         audio_file = "YES.wav"
         target_text = "NO"  # Target transcription for the adversarial sample
         population = 75
-        elits = 15
+        elits = 10
         epochs = 300
         mutatation_range = m
         epsilon = e
-        start = 7836
-        end = 12408
+        start = 7836 * 2
+        end = 12408 * 2
 
         speech_array, sampling_rate = torchaudio.load(audio_file)
-        speech_array = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)(speech_array)
+        temp = speech_array
+        speech_array = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=32000)(speech_array)
         speech_array = speech_array.squeeze().numpy()
+        temp = temp.squeeze().numpy()
         print("speech_array", speech_array.shape)
         print("speech_array", speech_array)
 
@@ -54,6 +55,7 @@ for m in mutation_list:
 
         result, noise, fitness, ctc_loss, final_epoch = attackEA.attack_speech(org=speech_array_tensor, adv=target_text,
                                                                   epochs=epochs)
+        result = torchaudio.transforms.Resample(orig_freq=32000, new_freq=16000)(result)
         result = result.squeeze().numpy()
         result = processor(result, sampling_rate=16000, return_tensors="pt", padding=True).input_values
         with torch.no_grad():
@@ -88,4 +90,7 @@ for m in mutation_list:
         if isinstance(result, np.ndarray):
             print("Shape of result:", result.shape)
             print("Data type of result:", result.dtype)
-        sf.write(f"{folder_path}{result_text}_audio_{m}_{e}_{final_epoch}.wav", speech_array + noise, sampling_rate)
+
+        new_audio = temp+noise
+        resulting_sound = torchaudio.transforms.Resample(orig_freq=32000, new_freq=16000)(new_audio)
+        sf.write(f"{folder_path}{result_text}_audio_{m}_{e}_{final_epoch}.wav", resulting_sound, sampling_rate)

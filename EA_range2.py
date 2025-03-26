@@ -29,7 +29,7 @@ class Individual:
 
 
 class EA:
-    def __init__(self,  target, pop, elits, mutatation_range, epsilon, start, end):
+    def __init__(self, target, pop, elits, mutatation_range, epsilon, start, end):
         self.pop = pop
         self.target = target
         self.elits = elits
@@ -82,7 +82,6 @@ class EA:
         inputs = processor(audio_tensor, sampling_rate=16000, return_tensors='pt', padding=True)
         input_values = inputs.input_values.view(1, 1, -1).squeeze(0)
 
-
         # Get logits from the Wav2Vec2 model
         with torch.no_grad():
             logits = model(input_values).logits  # Shape: (batch, time, vocab_size)
@@ -95,7 +94,8 @@ class EA:
 
         # Define sequence lengths
         input_lengths = torch.full(size=(log_probs.shape[0],), fill_value=log_probs.shape[1], dtype=torch.long)
-        target_lengths = torch.full(size=(target_encoded.shape[0],), fill_value=target_encoded.shape[1], dtype=torch.long)
+        target_lengths = torch.full(size=(target_encoded.shape[0],), fill_value=target_encoded.shape[1],
+                                    dtype=torch.long)
 
         # Compute CTC Loss
         ctc_loss_fn = torch.nn.CTCLoss(blank=processor.tokenizer.pad_token_id, reduction='mean')
@@ -145,7 +145,6 @@ class EA:
 
         return loss
 
-
     """
     Perceptual Loss	Meaning
         ≈ 0.0 - 0.5	Imperceptible noise, almost identical
@@ -154,6 +153,7 @@ class EA:
         5.0 - 10.0	Noticeable, likely unpleasant changes (your case: 7.83)
         > 10.0	Strong noise, likely unrecognizable distortion
     """
+
     def perceptual_loss_combined(self, original_audio, adversarial_noise):
         mel_transform = T.MelSpectrogram(
             sample_rate=16000,
@@ -185,13 +185,24 @@ class EA:
         size = len(original[0])
 
         for _ in range(pop):
-            # Initialize array with zeros
+            # Step 1: Initialize array with zeros
             new_solution = np.zeros(size, dtype=np.float32)
 
-            # Assign random values only within the specified index range
-            new_solution[start:end] = np.random.uniform(low=-self.epsilon, high=self.epsilon, size=end - start).astype(np.float32)
+            # Step 2: Assign random values only within the specified index range
+            new_solution[start:end] = np.random.uniform(
+                -self.epsilon, self.epsilon, end - start
+            ).astype(np.float32)
 
-            population.append(Individual(solution=new_solution, fitness=None, ctc_fitness=None))
+            # # 🔹 Step 3: Apply psychoacoustic masking (make noise follow speech envelope)
+            # envelope = torch.abs(torch.tensor(original, dtype=torch.float32))  # Ensure tensor format
+            # new_solution *= envelope.squeeze().numpy()  # Fix: Remove extra dimension before multiplication
+
+            # 🔹 Step 4: Apply high-frequency bandpass filtering (hide noise in higher frequencies)
+            noise_tensor = torch.tensor(new_solution, dtype=torch.float32)
+            filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
+
+            # Step 5: Store in population
+            population.append(Individual(solution=filtered_noise.numpy(), fitness=None, ctc_fitness=None))
 
         return population
 
@@ -219,10 +230,7 @@ class EA:
             # print("CTC loss function: ", ctc_loss_numpy(original+indv.solution, self.target))
             print("indvFITNESS_CTC: ", indv.ctc_fitness)
 
-
-
             fitts.append(indv.ctc_fitness)
-
 
         # population.sort(key=lambda x: (x.fitness, x.ctc_fitness))
         # population.sort(key=lambda x: x.fitness)
@@ -246,15 +254,35 @@ class EA:
     # Step 4: Repopulation/Crossover
     def crossover(self, population, start, end):
         for i in range(self.elits):
-            # ind1 = population[i]
-            # ind2 = population[i + 1]
-            # midpoint = start + (end - start)
-            # first_half = ind1.solution[:midpoint]
-            # second_half = ind2.solution[midpoint:]
-            # combined = np.concatenate((first_half, second_half))
-            # new_ind = Individual(solution=combined, fitness=None, ctc_fitness=None)
-            # # print("NEW IND: ", new_ind)
-            # population.append(new_ind)
+            # if population[0].fitness == 0.0:
+            #     ind1 = population[0]
+            #     ind2 = population[i + 1]
+            #     midpoint = start + (end - start)
+            #     f_left = ind1.solution[:midpoint]
+            #     f_right = ind1.solution[midpoint:]
+            #     c_left = ind2.solution[:midpoint]
+            #     c_right = ind2.solution[midpoint:]
+            #     combined1 = np.concatenate((f_left, c_right))
+            #     combined2 = np.concatenate((c_left, f_right))
+            #     new_ind1 = Individual(solution=combined1, fitness=None, ctc_fitness=None)
+            #     new_ind2 = Individual(solution=combined2, fitness=None, ctc_fitness=None)
+            #     population.append(new_ind1)
+            #     population.append(new_ind2)
+            #     if i == 5:
+            #         print(len(population))
+            #         break
+            # else:
+            #     ind1 = population[i]
+            #     ind2 = population[i + 1]
+            #
+            #     midpoint = start + (end - start)
+            #     first_half = ind1.solution[:midpoint]
+            #     second_half = ind2.solution[midpoint:]
+            #     combined = np.concatenate((first_half, second_half))
+            #
+            #     new_ind = Individual(solution=combined, fitness=None, ctc_fitness=None)
+            #     # print("NEW IND: ", new_ind)
+            #     population.append(new_ind)
 
             # paper version
             ind1 = population[i]
@@ -274,41 +302,40 @@ class EA:
     def mutation(self, population, start, end):
         ranges = [-self.mutation_range, 0, self.mutation_range]
 
-        for indv in population[-self.elits:]:  # Skip elite individuals
-            for i in range(start, end, 2):
-                if random.random() > 0.3:
-                    indv.solution[i] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range)
+        for indv in population[self.elits:]:  # Skip elite individuals
+            if random.random() > 0.1:
+                size = len(indv.solution)
 
-
-
-                    # # Directly apply mutation without masking
-                    # random_array = np.zeros(size, dtype=np.float32)
-                    # random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range, size=end - start)
-                    # indv.solution += random_array
-
-                # # Generate noise with lower amplitude
+                # # Directly apply mutation without masking
                 # random_array = np.zeros(size, dtype=np.float32)
                 # random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range, size=end - start)
-                #
+                # indv.solution += random_array
+
+                # Generate noise with lower amplitude
+                random_array = np.zeros(size, dtype=np.float32)
+                random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range,
+                                                            size=end - start)
+
                 # # Apply psychoacoustic masking (blend noise with speech envelope)
                 # envelope = np.abs(indv.solution)
                 # random_array *= envelope
-                #
-                # # Apply high-frequency bandpass filter (hide noise from human perception)
-                # noise_tensor = torch.tensor(random_array, dtype=torch.float32)
-                # filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
-                #
-                # # Add noise to solution
-                # indv.solution += filtered_noise.numpy()
+
+                # Apply high-frequency bandpass filter (hide noise from human perception)
+                noise_tensor = torch.tensor(random_array, dtype=torch.float32)
+                filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
+
+                # Add noise to solution
+                indv.solution += filtered_noise.numpy()
 
         return population
-
 
     # Step 6: Generate, evaluate Population
     def attack_speech(self, org, adv, epochs):
         population = self.generate_population(org, self.pop, self.start, self.end)
         final_epoch = 0
         saved = 1
+        current_fitness = 0
+        counter = 0
         print(self.perceptual_loss_combined(org, org))
         for _ in range(epochs):
 
@@ -350,19 +377,22 @@ class EA:
             # print("CROSSOVER: ", e2-b2)
             # print("MUTATION: ", e3-b3)
             print(self.transcript_audio(org + population[0].solution), self.target)
+            print(fitts[0])
 
+            if current_fitness > fitts[0]:
+                current_fitness = fitts[0]
+                counter = 0
+
+            counter += 1
             # if self.transcript_audio(org + population[0].solution) == self.target and saved:
             #     print("We reached our destination! OLLAAAAAA")
             #     sf.write("first_advers_audio.wav", org + population[0].solution, 16000)
             #     saved = 0
 
-
-            if self.transcript_audio(org + population[0].solution) == self.target and population[0].ctc_fitness <= 4.0:
+            if self.transcript_audio(org + population[0].solution) == self.target and (
+                    population[0].ctc_fitness <= 2.0 or counter >= 30):
                 print("We reached our destination! OLLAAAAAA")
                 break
 
-
-        return (org+population[0].solution, population[0].solution, population[0].fitness, population[0].ctc_fitness,
+        return (org + population[0].solution, population[0].solution, population[0].fitness, population[0].ctc_fitness,
                 final_epoch)
-
-
