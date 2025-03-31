@@ -12,8 +12,8 @@ processor = Wav2Vec2Processor.from_pretrained(model_name)
 # from EA_range import EA
 from EA_reduce import EA
 
-mutation_list = [0.25, 0.1, 0.05, 0.01]
-epsilon_list = [0.25, 0.1, 0.05, 0.01]
+mutation_list = [0.25, 0.15, 0.1]
+epsilon_list = [0.25, 0.15, 0.1]
 folder_path = "gridSearch/epoch300/"
 
 for m in mutation_list:
@@ -23,7 +23,7 @@ for m in mutation_list:
         target_text = "NO"  # Target transcription for the adversarial sample
         population = 75
         elits = 15
-        epochs = 300
+        epochs = 100
         mutatation_range = m
         epsilon = e
         start = 7836
@@ -34,6 +34,24 @@ for m in mutation_list:
         speech_array = speech_array.squeeze().numpy()
         print("speech_array", speech_array.shape)
         print("speech_array", speech_array)
+        counter = 0
+        # treshold = 0.01
+        # for i in speech_array[0:16000]:
+        #     if i > treshold or i < -treshold:
+        #         print(counter)
+        #         start = counter
+        #         break
+        #     else:
+        #         counter += 1
+        # reversed_array = speech_array[::-1]
+        # counter = 0
+        # for i in reversed_array[0:16000]:
+        #     if i > treshold or i < -treshold:
+        #         print(counter)
+        #         end = 16000-counter
+        #         break
+        #     else:
+        #         counter += 1
 
         speech_array_tensor = torch.tensor(speech_array, dtype=torch.float32).unsqueeze(0)
         print("speech_array", speech_array_tensor.shape)
