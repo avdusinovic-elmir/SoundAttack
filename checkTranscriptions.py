@@ -13,9 +13,12 @@ commands = ["yes", "up", "stop", "right", "on", "off", "no", "left", "go", "down
 for command in commands:
     folder = "audio/"+command+"/original/"
     dir_list = os.listdir(folder)
-    for i in range(len(dir_list)-1):
+    print(command)
+    for i in range(10):
         # Load Audio File
         audio_file = folder+command+"_"+str(i+1)+".wav"
+        if not os.path.isfile(audio_file):
+            continue
         speech_array, sampling_rate = torchaudio.load(audio_file)
         # speech_array = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)(speech_array)
         # speech_array = speech_array.squeeze().numpy()

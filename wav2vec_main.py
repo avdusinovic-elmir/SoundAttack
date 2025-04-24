@@ -14,11 +14,11 @@ processor = Wav2Vec2Processor.from_pretrained(model_name)
 from EA_reduce import EA
 
 # ATTACK
-audio_file = "audio/yes/original/yes_1.wav"
+audio_file = "faraz.wav"
 target_text = "NO"  # Target transcription for the adversarial sample
 population = 75
 elits = 15
-epochs = 1000
+epochs = 1
 mutatation_range = 0.7
 epsilon = 0.5
 # start = 7836
