@@ -11,6 +11,7 @@ population = [50, 75, 100, 150]
 elite = [0.1, 0.2, 0.3, 0.4]
 mutation_range = [0.9, 0.7, 0.5, 0.25]
 epsilon_range = [0.9, 0.7, 0.5, 0.25]
+
 d50_4={}
 d75_4={}
 d100_4={}
@@ -58,7 +59,7 @@ for file in folder_content:
     else:
         results8[file_split[2]].update({key: result})
 
-
+# Save the values in an excel file for later use if necessary
 # Website used to understand the code:https://www.geeksforgeeks.org/working-with-excel-spreadsheets-in-python/
 wb = Workbook()
 wb.create_sheet(title="sample4")
@@ -109,6 +110,12 @@ counter = 0
 legend_list = []
 # plt.xticks(np.arange(0,1000,step=100))
 # plt.yticks(np.arange(0,25,step=1))
+
+# Display all the results in scatterplots
+
+sample4_best_results = []
+sample8_best_results = []
+
 for pop in population:
     leg = mpatches.Patch(color=c[counter], label=pop)
     legend_list.append(leg)
@@ -117,6 +124,9 @@ for pop in population:
     for i in range(len(x)):
         if x[i] == 0 and y[i] == 0:
             continue
+
+        if y[i] < 200 and x[i] < 7.5:
+            sample4_best_results.append(f"{pop}_{i+1}")
         plt.scatter(y[i], x[i], label=str(pop), marker=f"${i+1}$", s=100, color=c[counter])
     counter+=1
 plt.legend(handles=legend_list)
@@ -135,6 +145,12 @@ for pop in population:
     for i in range(len(x)):
         if x[i]==0 and y[i]==0:
             continue
+
+        if y[i] < 200 and x[i] < 15:
+            # print(str(y[i])+"/"+str(x[i]))
+            # print(pop)
+            # print(i+1)
+            sample8_best_results.append(f"{pop}_{i+1}")
         plt.scatter(y[i], x[i], label=str(pop), marker=f"${i+1}$", s=100, color=c[counter])
     counter+=1
 plt.legend(handles=legend_list)
@@ -143,4 +159,51 @@ plt.ylabel("Perceptual loss")
 plt.xlabel("Epochs")
 plt.title("Sample 8 Grid Search")
 plt.savefig("log2.png")
+plt.show()
+
+# Try to find the closest results
+
+print(sample4_best_results)
+print(sample8_best_results)
+counter = 0
+temp = 0
+for i in range(max(len(sample4_best_results), len(sample8_best_results))):
+    if len(sample4_best_results)>len(sample8_best_results):
+        if sample4_best_results[i] in sample8_best_results:
+            pop = int(sample4_best_results[i].split("_")[0])
+            if temp != pop and temp != 0:
+                counter+=1
+            x4 = df4[pop].values[1:]
+            x8 = df8[pop].values[1:]
+            y4 = df4[pop + 1].values[1:]
+            y8 = df8[pop + 1].values[1:]
+            index = int(sample4_best_results[i].split("_")[1])-1
+
+            print(counter)
+            mean_y = (y4[index]+y8[index])/2
+            mean_x = (x4[index]+x8[index])/2
+            plt.scatter(mean_y, mean_x, label=str(pop), marker=f"${index+1}$", s=100, color=c[counter])
+            temp = pop
+    else:
+        if sample8_best_results[i] in sample4_best_results:
+            pop = int(sample8_best_results[i].split("_")[0])
+            if temp != pop and temp != 0:
+                counter+=1
+            x4 = df4[pop].values[1:]
+            x8 = df8[pop].values[1:]
+            y4 = df4[pop + 1].values[1:]
+            y8 = df8[pop + 1].values[1:]
+            index = int(sample8_best_results[i].split("_")[1])-1
+
+            mean_y = (y4[index] + y8[index]) / 2
+            mean_x = (x4[index] + x8[index]) / 2
+            plt.scatter(mean_y, mean_x, label=str(pop), marker=f"${index + 1}$", s=100, color=c[counter])
+            temp = pop
+
+plt.legend(handles=legend_list)
+plt.grid(linestyle = '--', linewidth = 0.5)
+plt.ylabel("Perceptual loss")
+plt.xlabel("Epochs")
+plt.title("Average of the closest results")
+plt.savefig("log3.png")
 plt.show()
