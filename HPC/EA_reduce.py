@@ -55,7 +55,11 @@ class EA:
         #     f.write(f"{message}\n")
 
     def clip_audio(self, combination, original):
-        clipped_combination = np.clip(combination, -1, 1)
+        # self.log(f"Max Clip before: {combination.max()} & Min Clip before: {combination.min()}")
+        # print(f"Max Clip before: {combination.max()} & Min Clip before: {combination.min()}")
+        clipped_combination = torch.clamp(combination, -1, 1)
+        # print(f"Max Clip after: {clipped_combination.max()} & Min Clip after: {clipped_combination.min()}")
+        # self.log(f"Max Clip after: {clipped_combination.max()} & Min Clip after: {clipped_combination.min()}")
         adv_noise = clipped_combination - original
         return adv_noise.squeeze().numpy()
 
@@ -179,7 +183,7 @@ class EA:
             noise_tensor = torch.tensor(new_solution, dtype=torch.float32)
             filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
             # print(len(filtered_noise))
-            filtered_noise = self.clip_audio(original + filtered_noise.numpy(), original)
+            # filtered_noise = self.clip_audio(original+filtered_noise.numpy(), original)
             # print(len(filtered_noise))
 
             # Step 5: Store in population
@@ -197,6 +201,7 @@ class EA:
         for indv in population:
             # original = self.preprocess_audio(original)
             combination = original + indv.solution
+            combination = torch.clamp(combination, -1, 1)
             # print(indv.solution)
             # Wav2Vec model
             text = self.transcript_audio(combination)
@@ -215,54 +220,11 @@ class EA:
             # print("CTC: ", indv.ctc_fitness)
             # threshold_fitness = max(combination)
 
-            # one_fitness = indv.fitness*10 - indv.ctc_fitness
-            # if one_fitness > 0.0:
-            #     indv.fitness = one_fitness
-            # indv.fitness = one_fitness
-
-            # coefficients to determine which fitnesses take the most effect
-            coeff1 = 20
-            coeff2 = 1 / 5
-            coeff3 = 1 / 4
-
-            # perceptual fitness should not exceed a certain threshold
-            # if it does increase its fitness to a large value so that it gets popped
-            # think about this again regarding the fine tuning at the end maybe some wriggle room allowed
-            # if indv.ctc_fitness > 5.0:
-            #     indv.fitness = 100
-            # else:
-            #     indv.fitness = coeff1 * indv.fitness + coeff2 * ctc_loss + coeff3 * indv.ctc_fitness
-            # indv.fitness = coeff1 * indv.fitness + coeff2 * ctc_loss + coeff3 * indv.ctc_fitness
-
-            # if indv.fitness == 0.0:
-            #     indv.fitness = indv.ctc_fitness
-            # else:
-            #     indv.fitness = coeff1 * indv.fitness + ctc_loss/indv.ctc_fitness
-
-            # alpha = 1.0
-            # beta = 0.2 + 0.8 * (epoch / max_epochs)  # Slowly increase perceptual weight
-            #
-            # if indv.ctc_fitness <= 4:
-            #     indv.fitness = alpha * ctc_loss + beta * indv.ctc_fitness
-            # else:
-            #     indv.fitness = alpha * ctc_loss + beta * indv.ctc_fitness + (
-            #                 indv.ctc_fitness - 4) ** 2  # Heavy penalty above 4
-
-            # After calculating losses:
-            # if indv.ctc_fitness > 10:
-            #     indv.fitness = 1e6  # discard extreme noise
-            # elif indv.ctc_fitness > 4:
-            #     indv.fitness = ctc_loss + 0.3 * 4 + (indv.ctc_fitness - 4) ** 2  # punish above 4
-            # else:
-            #     indv.fitness = ctc_loss + 0.3 * indv.ctc_fitness
-
-            # if indv.fitness > 0.0:
-            #     indv.fitness = self.ctc_loss(original, indv.solution, self.target)
             fitts.append(indv.ctc_fitness)
 
         # population.sort(key=lambda x: (x.fitness, x.ctc_fitness))
         # population.sort(key=lambda x: x.fitness)
-        if population[0].fitness == 0.0 or population[0].perceptual_fitness >= 15.0:
+        if population[0].fitness == 0.0:  # or population[0].perceptual_fitness >=15.0:
             # print("HULLLLLLUUUULLLUUUUUUUUUUUUUUU")
             population.sort(key=lambda x: (x.fitness, x.perceptual_fitness, x.ctc_fitness))
         else:
@@ -298,7 +260,7 @@ class EA:
         return population
 
     def mutation(self, population, start, end, original):
-        for indv in population[self.elits:]:  # Skip elite individuals
+        for indv in population[-self.elits:]:  # Skip elite individuals
             random_array = np.zeros(len(indv.solution), dtype=np.float32)
             for i in range(start, end):
                 if random.random() > 0.3:
@@ -319,69 +281,90 @@ class EA:
             # filtered_noise = np.clip(filtered_noise, -0.7, 0.7)
             # Add noise to solution
             indv.solution += filtered_noise.numpy()
-            indv.solution = self.clip_audio(original + indv.solution, original)
+            # indv.solution = self.clip_audio(original+indv.solution, original)
 
-            # if random.random() < 0.0005:
-            #     size = len(indv.solution)
-            #     # Generate noise with lower amplitude
-            #     random_array = np.zeros(size, dtype=np.float32)
-            #     random_array[start:end] = np.random.uniform(low=-self.mutation_range, high=self.mutation_range,
-            #                                                 size=end - start)
-            #
-            #     random_array = np.clip(random_array, -1, 1)
-            #     # Add noise to solution
-            #     indv.solution += random_array
-            # indv.solution = np.clip(indv.solution, -0.6, 0.6)
         return population
 
-    def fine_tune(self, adversarial_audio, loss, epochs, original, start, end):
-        size = len(adversarial_audio)
-        value = 0.015
+    def fine_tune(self, adversarial_audio, loss, original, threshold):
+        size = len(adversarial_audio[0])
 
-        for _ in range(epochs):
-            # Generate small perturbation
-            random_array = np.zeros(size, dtype=np.float32)
-            random_array += adversarial_audio
-            candidate = random_array
-            perturbation = np.zeros(size, dtype=np.float32)
+        for i in range(size):
+            temp = 0
+            impact = (original[0, i] - adversarial_audio[0, i]) / original[0, i]
+            impact[torch.isinf(impact)] = 0
 
-            perturbation[start:end] = np.random.uniform(low=-value, high=value,
-                                                        size=end - start)
-            # perturbation = np.random.uniform(-self.epsilon, self.epsilon, size=candidate.shape)
+            if abs(impact) > threshold:
+                temp += adversarial_audio[0, i]
+                counter = 0
+                while (counter < 1):
+                    counter += 1
 
-            # Optional: Apply envelope or bandpass
-            perturbation *= np.abs(candidate)  # Optional masking
-            # filtered = bandpass(perturbation)     # Optional filtering
+                    if adversarial_audio[0, i] < 0 and original[0, i] > 0:
+                        # print("Condition1")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 0.9
+                        if adversarial_audio[0, i] < 0 and abs(adversarial_audio[0, i]) < 0.01:
+                            adversarial_audio[0, i] = abs(adversarial_audio[0, i])
+                    elif adversarial_audio[0, i] < original[0, i] and adversarial_audio[0, i] > 0:
+                        # print("Condition2")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 1.1
+                        if adversarial_audio[0, i] > original[0, i]:
+                            continue
+                    elif adversarial_audio[0, i] > 0 and original[0, i] < 0:
+                        # print("Condition3")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 0.9
+                        if adversarial_audio[0, i] > 0 and adversarial_audio[0, i] < 0.01:
+                            adversarial_audio[0, i] = -adversarial_audio[0, i]
+                    elif adversarial_audio[0, i] > original[0, i] and adversarial_audio[0, i] < 0 and original[
+                        0, i] < 0:
+                        # print("Condition4")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 1.1
+                        if adversarial_audio[0, i] < original[0, i]:
+                            continue
+                    elif adversarial_audio[0, i] < original[0, i] and adversarial_audio[0, i] < 0 and original[
+                        0, i] < 0:
+                        # print("Condition5")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 0.9
+                        if adversarial_audio[0, i] > original[0, i]:
+                            continue
+                    elif adversarial_audio[0, i] > original[0, i] and adversarial_audio[0, i] > 0 and original[
+                        0, i] > 0:
+                        # print("Condition6")
+                        adversarial_audio[0, i] = adversarial_audio[0, i] * 0.9
+                        if adversarial_audio[0, i] < original[0, i]:
+                            continue
 
-            # Apply high-frequency bandpass filter (hide noise from human perception)
-            noise_tensor = torch.tensor(perturbation, dtype=torch.float32)
-            filtered_noise = F.bandpass_biquad(noise_tensor, 16000, central_freq=6000, Q=0.707)
-            # filtered_noise = np.clip(filtered_noise, -0.7, 0.7)
-            # Add noise to solution
-            candidate += filtered_noise.numpy()
+                    # combination = original + random_array
+                    new_audio = torch.clamp(adversarial_audio, -1, 1)
+                    # candidate = self.clip_audio(combination, original)
+                    # new_audio = original + candidate
+                    new_transcript = self.transcript_audio(new_audio)
+                    new_loss = self.perceptual_loss_combined(original, new_audio)
 
-            # candidate += perturbation
-            # candidate = np.clip(candidate, -0.7, 0.7)
+                    # if abs(original[0,i])>=abs(new_audio[0,i]):
+                    #     random_array[i] = temp
+                    #     break
 
-            # Evaluate new audio
-            combination = original + candidate
-            candidate = self.clip_audio(combination, original)
-            new_audio = original + candidate
-            new_transcript = self.transcript_audio(new_audio)
-            new_loss = self.perceptual_loss_combined(original, new_audio)
+                    if new_transcript.strip().lower() == self.target.lower() and new_loss <= loss:
+                        loss = new_loss
+                        # print(new_loss)
+                        # print(adversarial_audio[0,i])
+                        # print(original[0,i])
+                        # print(impact)
+                        temp = 0
+                        temp += adversarial_audio[0, i]
+                        counter = 0
 
-            # Accept only if transcription is preserved AND loss is improved
-            if new_transcript.strip().lower() == self.target.lower() and new_loss < loss:
-                adversarial_audio = candidate
-                loss = new_loss
-                # print(f"Updated loss: {loss:.4f}")
+                    # if new_transcript.strip().lower() != self.target.lower():
+                    #     random_array[i] = temp
+                    #     break
+                adversarial_audio[0, i] = temp
 
         # print(self.transcript_audio(original+adversarial_audio))
         # print(self.perceptual_loss_combined(original, original+adversarial_audio))
         return adversarial_audio, loss
 
     # Step 6: Generate, evaluate Population
-    def attack_speech(self, org, adv, epochs):
+    def attack_speech(self, org, adv, epochs, threshold):
         population = self.generate_population(org, self.pop, self.start, self.end)
         final_epoch = 0
         achieved_goal = True
@@ -415,27 +398,34 @@ class EA:
             population = self.mutation(population, self.start, self.end, org)
             # print("POPULATION SIZE after mutation: ", len(population))
             # e3 = time.time()
-            if population[0].fitness == 0.0:
-                self.log("Start of fine tuning elits:")
-                for i in range(self.elits):
-                    before = str(population[i].perceptual_fitness)
-                    population[i].solution, population[i].perceptual_fitness = self.fine_tune(population[i].solution,
-                                                                                              population[
-                                                                                                  i].perceptual_fitness,
-                                                                                              50,
-                                                                                              org, self.start, self.end)
-                    self.log(f"Elite {i} before {before} and after {population[i].perceptual_fitness}")
+
+            # Fine tuning
+            # if population[0].fitness == 0.0:
+            #     self.log("Start of fine tuning elits:")
+            #     for i in range(self.elits):
+            #         before = str(population[i].perceptual_fitness)
+            #         population[i].solution, population[i].perceptual_fitness = self.fine_tune(population[i].solution,
+            #                                                                        population[i].perceptual_fitness, 50,
+            #                                                                        org, self.start, self.end)
+            #         self.log(f"Elite {i} before {before} and after {population[i].perceptual_fitness}")
 
             # print(self.transcript_audio(org + population[0].solution), self.target)
             # print(fitts[0])
             # print(population[0].perceptual_fitness)
 
-            if self.transcript_audio(org + population[0].solution) == self.target and population[
-                0].perceptual_fitness <= 2.0:
+            if self.transcript_audio(torch.clamp(org + population[0].solution, -1,
+                                                 1)) == self.target:  # and population[0].perceptual_fitness <= 2.0:
                 print("We reached our destination! OLLAAAAAA")
                 break
 
+        self.log(f"Perceptual loss before: {population[0].perceptual_fitness}")
+        result = org + population[0].solution
+        result = torch.clamp(result, -1, 1)
+        result, population[0].perceptual_fitness = self.fine_tune(result, population[0].perceptual_fitness, org,
+                                                                  threshold)
+        self.log(f"Perceptual loss after: {population[0].perceptual_fitness}")
+
         with open(self.log_path, "w") as f:
             f.write("\n".join(self.log_buffer))
-        return (org + population[0].solution, population[0].solution, population[0].fitness, population[0].ctc_fitness,
+        return (result, population[0].solution, population[0].fitness, population[0].ctc_fitness,
                 final_epoch, population[0].perceptual_fitness)
