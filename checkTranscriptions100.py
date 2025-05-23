@@ -13,18 +13,16 @@ processor = Wav2Vec2Processor.from_pretrained(model_name)
 commands = ["yes", "up", "stop", "right", "on", "off", "no", "left", "go", "down"]
 
 for command in commands:
-    folder = "Dataset/augmented_dataset/"+command
+    folder = "Dataset/original_audio/"+command+"/original"
     dir_list = os.listdir(folder)
     size = len(dir_list)
     print(command)
     counter = 0
-    list_files = []
-    while counter < 10:
+    for file in dir_list:
         # Load Audio File
         # random = random.choice(dir_list)
         # audio_file = folder+command+"/"+str(i+1)+".wav"
-        random_file = random.choice(dir_list)
-        audio_file = folder+"/"+random_file
+        audio_file = folder+"/"+file
         if not os.path.isfile(audio_file):
             continue
         speech_array, sampling_rate = torchaudio.load(audio_file)
@@ -47,7 +45,8 @@ for command in commands:
         # Decode Transcription and Probabilities
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.batch_decode(predicted_ids)[0]
-        if transcription.lower() == command.lower() and audio_file not in list_files:
-            print(f"Transcription {command}_{random_file}:", transcription)
-            list_files.append(audio_file)
+        if transcription.lower() == command.lower():
             counter += 1
+        else:
+            print(f"{audio_file} has transcription {transcription}")
+    print(counter)
