@@ -9,7 +9,7 @@ model = Wav2Vec2ForCTC.from_pretrained(model_name)
 processor = Wav2Vec2Processor.from_pretrained(model_name)
 
 # Load Audio File
-audio_file = "gridSearch/generated_audio_epoch_234.wav"
+audio_file = "YOU_489.wav"
 speech_array, sampling_rate = torchaudio.load(audio_file)
 # speech_array = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16000)(speech_array)
 # speech_array = speech_array.squeeze().numpy()
